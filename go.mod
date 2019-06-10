@@ -1,1 +1,3 @@
-module github.com/betacraft/easytags
+module addtag
+
+go 1.12

@@ -15,9 +15,10 @@ import (
 	"unicode"
 )
 
-const defaultTag = "json"
-const defaultCase = "snake"
-const cmdUsage = `
+const (
+	defaultTag  = "json"
+	defaultCase = "camel"
+	cmdUsage    = `
 Usage : easytags [options] <file_name> [<tag:case>]
 Examples:
 - Will add json in camel case and xml in default case (snake) tags to struct fields
@@ -26,7 +27,14 @@ Examples:
 	easytag -r file.go
 Options:
 
-	-r removes all tags if none was provided`
+	-r removes before add
+	-o add omitempty
+`
+)
+
+var (
+	omitemptyFlag bool
+)
 
 type TagOpt struct {
 	Tag  string
@@ -34,16 +42,18 @@ type TagOpt struct {
 }
 
 func main() {
-	remove := flag.Bool("r", false, "removes all tags if none was provided")
+	remove := flag.Bool("r", true, "removes all tags if none was provided")
+	omitempty := flag.Bool("o", true, "add omitempty")
 	flag.Parse()
+	omitemptyFlag = *omitempty
 
 	args := flag.Args()
 	var tags []*TagOpt
 
-	if len(args) < 1 {
+	if len(args) < 2 {
 		fmt.Println(cmdUsage)
 		return
-	} else if len(args) == 2 {
+	} else {
 		provided := strings.Split(args[1], ",")
 		for _, e := range provided {
 			t := strings.SplitN(strings.TrimSpace(e), ":", 2)
@@ -128,7 +138,14 @@ func parseTags(field *ast.Field, tags []*TagOpt) string {
 			default:
 				fmt.Printf("Unknown case option %s", tag.Case)
 			}
-			value = fmt.Sprintf("%s:\"%s\"", tag.Tag, name)
+			var tplStr string
+			if omitemptyFlag {
+				tplStr = "%s:\"%s,omitempty\""
+			} else {
+				tplStr = "%s:\"%s\""
+			}
+			value = fmt.Sprintf(tplStr, tag.Tag, name)
+
 			tagValues = append(tagValues, value)
 		}
 
@@ -155,7 +172,6 @@ func processTags(x *ast.StructType, tags []*TagOpt, remove bool) {
 
 		if remove {
 			field.Tag = nil
-			continue
 		}
 
 		if field.Tag == nil {
@@ -186,7 +202,7 @@ func ToSnake(in string) string {
 	return string(out)
 }
 
-// ToLowerCamel convert the given string to camelCase
+// ToCamel convert the given string to camelCase
 func ToCamel(in string) string {
 	runes := []rune(in)
 	length := len(runes)
