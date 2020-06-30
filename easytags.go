@@ -16,9 +16,14 @@ import (
 )
 
 const (
+	case_camel  = "camel"
+	case_snake  = "snake"
+	case_pascal = "pascal"
+
 	defaultTag  = "json"
-	defaultCase = "camel"
-	cmdUsage    = `
+	defaultCase = case_camel
+	// TODO use Cobra
+	cmdUsage = `
 Usage : easytags [options] <file_name> [<tag:case>]
 Examples:
 - Will add json in camel case and xml in default case (snake) tags to struct fields
@@ -42,8 +47,8 @@ type TagOpt struct {
 }
 
 func main() {
-	remove := flag.Bool("r", true, "removes all tags if none was provided")
-	omitempty := flag.Bool("o", true, "add omitempty")
+	remove := flag.Bool("r", false, "removes all tags if none was provided")
+	omitempty := flag.Bool("o", false, "add omitempty")
 	flag.Parse()
 	omitemptyFlag = *omitempty
 
@@ -129,11 +134,11 @@ func parseTags(field *ast.Field, tags []*TagOpt) string {
 		if existingTag == "" {
 			var name string
 			switch tag.Case {
-			case "snake":
+			case case_snake:
 				name = ToSnake(fieldName)
-			case "camel":
+			case case_camel:
 				name = ToCamel(fieldName)
-			case "pascal":
+			case case_pascal:
 				name = fieldName
 			default:
 				fmt.Printf("Unknown case option %s", tag.Case)
