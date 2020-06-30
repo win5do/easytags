@@ -15,6 +15,7 @@ You can also use this with go generate
 For example - In your source file, write following line
 
 > go:generate easytags $GOFILE json xml sql
+
 > go:generate easytags -r -o $GOFILE json:camel xml:pascal sql:snake
 
 And run
