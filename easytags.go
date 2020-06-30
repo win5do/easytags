@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -13,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -22,23 +23,15 @@ const (
 
 	defaultTag  = "json"
 	defaultCase = case_camel
-	// TODO use Cobra
-	cmdUsage = `
-Usage : easytags [options] <file_name> [<tag:case>]
-Examples:
-- Will add json in camel case and xml in default case (snake) tags to struct fields
-	easytags file.go json:camel,xml
-- Will remove all tags when -r flag used when no flags provided
-	easytag -r file.go
-Options:
 
-	-r removes before add
-	-o add omitempty
+	example = `
+	easytags -o <file_name> json:camel
+	easytags -r -o <file_name> json:pascal bson:snake
 `
 )
 
 var (
-	omitemptyFlag bool
+	gFlagOmitempty bool
 )
 
 type TagOpt struct {
@@ -47,20 +40,28 @@ type TagOpt struct {
 }
 
 func main() {
-	remove := flag.Bool("r", false, "removes all tags if none was provided")
-	omitempty := flag.Bool("o", false, "add omitempty")
-	flag.Parse()
-	omitemptyFlag = *omitempty
+	rootCmd := &cobra.Command{
+		Use:     "easytags [options] <file_name> [<tag:case>...]",
+		Short:   "A helper to generate golang struct tags.",
+		Example: example,
+	}
 
-	args := flag.Args()
-	var tags []*TagOpt
+	remove := rootCmd.Flags().BoolP("remove", "r", false, "removes all tags if none was provided")
+	omitempty := rootCmd.Flags().BoolP("omitempty", "o", false, "add omitempty")
 
-	if len(args) < 2 {
-		fmt.Println(cmdUsage)
-		return
-	} else {
-		provided := strings.Split(args[1], ",")
-		for _, e := range provided {
+	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		gFlagOmitempty = *omitempty
+
+		var tags []*TagOpt
+
+		if len(args) < 2 {
+			if err := rootCmd.Help(); err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		for _, e := range args[1:] {
 			t := strings.SplitN(strings.TrimSpace(e), ":", 2)
 			tag := &TagOpt{t[0], defaultCase}
 			if len(t) == 2 {
@@ -68,21 +69,25 @@ func main() {
 			}
 			tags = append(tags, tag)
 		}
+
+		if len(tags) == 0 && *remove == false {
+			tags = append(tags, &TagOpt{defaultTag, defaultCase})
+		}
+		for _, arg := range args {
+			files, err := filepath.Glob(arg)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+				return
+			}
+			for _, f := range files {
+				GenerateTags(f, tags, *remove)
+			}
+		}
 	}
 
-	if len(tags) == 0 && *remove == false {
-		tags = append(tags, &TagOpt{defaultTag, defaultCase})
-	}
-	for _, arg := range args {
-		files, err := filepath.Glob(arg)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-			return
-		}
-		for _, f := range files {
-			GenerateTags(f, tags, *remove)
-		}
+	if err := rootCmd.Execute(); err != nil {
+		panic(err)
 	}
 }
 
@@ -144,7 +149,7 @@ func parseTags(field *ast.Field, tags []*TagOpt) string {
 				fmt.Printf("Unknown case option %s", tag.Case)
 			}
 			var tplStr string
-			if omitemptyFlag {
+			if gFlagOmitempty {
 				tplStr = "%s:\"%s,omitempty\""
 			} else {
 				tplStr = "%s:\"%s\""
