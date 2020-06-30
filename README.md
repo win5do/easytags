@@ -7,14 +7,15 @@ We generally write Field names in CamelCase (aka pascal case) and we generally w
 
 usage :
 
-> easytags {file_name} {tag_name_1:case_1, tag_name_2:case_2}
+> easytags [options] <file_name> [<tag:case>...]
 
 > example: easytags file.go
 
 You can also use this with go generate
 For example - In your source file, write following line
 
-> go:generate easytags $GOFILE json,xml,sql
+> go:generate easytags $GOFILE json xml sql
+> go:generate easytags -r -o $GOFILE json:camel xml:pascal sql:snake
 
 And run
 > go generate
